@@ -1,0 +1,1082 @@
+---
+title: "FIRST HOMEWORK: UNSUPERVISED LEARNING"
+subtitle: "Statistical Learning. Bachelor in Data Science and Engineering"
+author: "Alejandro Leonardo García Navarro"
+date: 'November 3, 2022'
+output:
+  html_document: 
+    css: my-theme.css
+    theme: cerulean
+    highlight: tango
+    number_sections: true
+    toc: true
+    toc_depth: 2
+  pdf_document:
+    css: my-theme.css
+    theme: cerulean
+    highlight: tango
+    number_sections: yes
+    toc: yes
+    toc_depth: 1
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r global_options, include=T, echo = F}
+knitr::opts_chunk$set(echo = T, warning=FALSE, message=FALSE)
+```
+
+
+# Introduction to the homework.
+The aim of this homework is to apply unsupervised learning tools to an open
+data set. Unsupervised learning is a collection of instruments for 
+understanding data with no target attribute; that is, to discover hidden and
+interesting patterns in unlabeled data. 
+In order to do so, it was proposed to think about some goals or
+questions that may be desired to answer and, finally, get convenient insights 
+and conclusions from the output of the tools.
+
+
+
+# Information regarding the chosen dataset.
+Before starting with the homework, it is of high vitality to both show and
+explain the basics of the chosen data set. 
+This data set contains an airline passenger satisfaction survey and the main
+goal of it is to have a comprehensive understanding of what factors lead to 
+customer satisfaction for an airline; that is, what factors are highly
+correlated to a satisfied or dissatisfied passenger?
+
+It contains several variables. To be precise, 25:
+
+  - X: Refers to the number of row.
+  
+  - ID: Identifier of each passenger.
+  
+  - Gender: Gender of the passengers (Female, Male).
+  
+  - Customer Type: The customer type (Loyal customer, disloyal customer).
+  
+  - Age: The actual age of the passengers.
+  
+  - Type of Travel: Purpose of the flight of the passengers (Personal Travel, Business Travel).
+  
+  - Class: Travel class in the plane of the passengers (Business, Eco, Eco Plus).
+  
+  - Flight distance: The flight distance of this journey.
+  
+  - Inflight wifi service: Satisfaction level of the inflight wifi service (0:Not Applicable;1-5).
+  
+  - Departure/Arrival time convenient: Satisfaction level of Departure/Arrival time convenient.
+  - Ease of Online booking: Satisfaction level of online booking.
+  
+  - Gate location: Satisfaction level of Gate location.
+  
+  - Food and drink: Satisfaction level of Food and drink.
+  
+  - Online boarding: Satisfaction level of online boarding.
+  
+  - Seat comfort: Satisfaction level of Seat comfort.
+  
+  - Inflight entertainment: Satisfaction level of inflight entertainment.
+  
+  - On-board service: Satisfaction level of On-board service.
+  
+  - Leg room service: Satisfaction level of Leg room service.
+  
+  - Baggage handling: Satisfaction level of baggage handling.
+  
+  - Check-in service: Satisfaction level of Check-in service.
+  
+  - Inflight service: Satisfaction level of inflight service.
+  
+  - Cleanliness: Satisfaction level of Cleanliness.
+  
+  - Departure Delay in Minutes: Minutes delayed when departure.
+  
+  - Arrival Delay in Minutes: Minutes delayed when Arrival.
+  
+  - Satisfaction: Airline satisfaction level (Satisfaction, neutral or dissatisfaction).
+  
+
+## Loading dataset.
+The data set is uploaded using the 'read.csv' function. It is known that the
+most common way that scientists store data is in Excel spreadsheets. While
+there are R packages designed to access data from Excel spreadsheets, it is
+often easier to save spreadsheets in comma-separated values files (CSV) and 
+then use R’s built in functionality to read and manipulate the data. 
+```{r}
+set.seed(123)
+# STEP 1: Erase the global environment.
+rm(list = ls())
+
+# STEP 2: Install useful packages.
+# Library that contains new tools for the visualization of missing values.
+library(VIM)
+
+# Library used for data visualization.
+library(ggplot2)
+
+# Library focused on tools for working with data frames.
+library(dplyr)
+
+# Library that is a collection of R packages designed for data science. 
+library(tidyverse)
+
+# Library used to visualize and extract the output of multivariate data analyses.
+library(factoextra)
+
+# Library used for applying methods for cluster analysis.
+library(cluster)
+
+# Library that extends 'ggplot2'. Mainly used to make heatmap-like graphs.
+library(GGally)
+
+# Libraries used for clustering. In particular, the library 'mclust' is an
+# R package for model-based clustering, classification, and density estimation
+# based on finite normal mixture modelling.
+library(cluster)
+library(mclust)
+
+
+# STEP 3: Load dataset.
+passengers <- read.csv("passengers.csv")
+dataset <- as.data.frame(passengers)
+```
+
+
+
+# Data preprocessing.
+Once the data is uploaded, the very first thing that must be carried out is
+the so-called 'Data cleaning'. This is the process of fixing or removing
+incorrect corrupted, incorrectly formatted, duplicated, or incomplete data
+within a data set. There are several steps that must be followed.
+
+
+## STEP 1: Removing duplicated or irrelevant observations.
+```{r}
+# By observing the data set, it appears that, as of right now, two variables
+# seem to be useless; 'X' and 'id'. First off, 'X' indicates the number of row.
+# Consequently, is is deleted, since rows are already numbered. Moving on, as in
+# this project it is not desired to analyze the passengers by themselves, but
+# rather their answers to the surveys, the variable 'id'  can be omitted.
+dataset$X <- NULL
+dataset$id <- NULL
+
+# Once irrelevant observations are deleted, it is now time to remove the
+# duplicates, in case there are any. To do so, the function 'duplicated()'
+# is used. It determines which elements of a vector or data frame are duplicates
+# of elements with smaller subscripts, and returns a logical vector indicating
+# which elements (rows) are duplicates.
+
+# Moreover, due to the extent of this dataset, it will be impossible to recognize
+# which rows contain 'TRUE' values just by observing it (the line duplicated(dataset)
+# would be run in case this method was to be applied). Due to this exact purpose, 
+# other method is followed.
+
+# Another dataset is created using '!duplicated()', where '!' indicates logical
+# negation, so that a data set with no duplicates is obtained. Then, the original
+# and the new data set are compared to know if there where duplicates or not.
+data_unique <- dataset[!duplicated(dataset),]
+identical(dataset, data_unique)
+
+# Hence, as they are identical, there are no duplicates in the dataset.
+```
+
+
+## STEP 2: Fix or remove typos or errors.
+```{r}
+# Having analyzed all the columns, no big typos or errors are spotted.
+# Nonetheless, in order to provide a more straightforward output, the
+# 'satisfaction' column is modified to have 'satisfied' and 'dissatisfied';
+# instead of 'satisfied' and 'neutral or dissatisfied'.
+dataset$satisfaction[dataset$satisfaction == "neutral or dissatisfied"] <- "dissatisfied"
+
+# Furthermore, it is needed to take into account that the categorical variables
+# must be transformed into factors. Factors are data structures in R that store 
+# categorical data. In datasets, there are often fields that take only a few
+# predefined values. Hence, some modifications must be performed.
+dataset$Gender = as.factor(dataset$Gender)
+dataset$Customer.Type = as.factor(dataset$Customer.Type)
+dataset$Type.of.Travel = as.factor(dataset$Type.of.Travel)
+dataset$Class = as.factor(dataset$Class)
+dataset$satisfaction = as.factor(dataset$satisfaction)
+```
+
+
+## STEP 3: Outliers.
+```{r}
+# Before dealing with outliers, it is key to understand what these are. An
+# outlier is an observation that lies an abnormal distance from other values
+# in a random sample from a population (for example, if it is desired to study
+# the weight of people an all the provided values ranges between 40kg-60kg,
+# then, an outlier would be 700kg). There are several ways of checking these:
+# either make a boxplot for every single variable or make a general boxplot for
+# the entire dataset. The second method is followed.
+boxplot(dataset)
+
+# One can spot that variables like 'Flight.Distance', 'Checkin.service',
+# 'Departure.Delay.in.Minutes' and 'Arrival.Delay.in.Minutes' contain outliers.
+# Howbeit, a closer look in these variables is required to get better 
+# understandings and, therefore, take decisions.
+
+# Variable 'Flight.Distance':
+ggplot(dataset) +
+  aes(x = "", y = Flight.Distance) +
+  geom_boxplot(fill = "#4DA2BD") +
+  labs(y = "Flight distance") +
+  theme_light()
+
+# Variable 'Checkin.service':
+ggplot(dataset) +
+  aes(x = "", y = Checkin.service) +
+  geom_boxplot(fill = "#4DA2BD") +
+  labs(y = "Check-in service") +
+  theme_light()
+
+# Variable 'Departure.Delay.in.Minutes':
+ggplot(dataset) +
+  aes(x = "", y = Departure.Delay.in.Minutes) +
+  geom_boxplot(fill = "#4DA2BD") +
+  labs(y = "Departure delay in minutes") +
+  theme_light()
+
+# Variable 'Arrival.Delay.in.Minutes':
+ggplot(dataset) +
+  aes(x = "", y = Arrival.Delay.in.Minutes) +
+  geom_boxplot(fill = "#4DA2BD") +
+  labs(y = "Arrival delay in minutes") +
+  theme_light()
+
+# Now it is in our hands to whether or not get rid of these values. After a 
+# considering time debating this, the decision of not deleting any of the
+# outliers was taken. This is because these values may influence the rest,
+# specially 'satisfaction', which constitutes a key pilar in the dataset.
+```
+
+
+## STEP 4: Missing values.
+```{r}
+# A missing value is a non-present value in a variable. It is a must to identify
+# them and decide what to do.
+sum(is.na(dataset))
+
+# With the help of the function 'aggr()', it is possible to visually see which
+# specific variables contain empty values.
+aggr(dataset, numbers = TRUE, sortVars = TRUE, labels = names(dataset),
+     cex.axis = .7, gap = 1, ylab= c('Missing data','Pattern'))
+
+# As demonstrated, the missing values are on the 'Arrival.Delay.in.Minutes' variable.
+
+# The next step is to determine what to do.
+# As stated in class, if they are just a few and not relevant, we can delete them.
+# Say less than 5% of the sample. Otherwise:
+# 1. We can remove rows when most of their corresponding variables are empty.
+# 1. We can remove columns when most of their corresponding rows are empty.
+
+# In this case, "310" is less than 5% of the sample. In consequence, the decision
+# of removing these is taken.
+final_dataset <- na.omit(dataset)
+```
+
+
+
+# Visualization tools to get insights before the tools.
+For this part, it is basically asked to perform an exploratory data analysis.
+This refers to the critical process of performing initial investigations on
+data so as to discover patterns, to spot anomalies, to test hypothesis and to
+check assumptions with the help of summary statistics and graphical representations.
+```{r}
+# A step of high vitality to perform is to obtain a heatmap that shows us how
+# related are the variables among them. With this, certain queries can be
+# proposed and, hence, be able to fully understand the relation among the
+# variables contained in the dataset.
+
+data_heatmap <- as.data.frame(sapply(final_dataset, as.numeric))
+ggcorr(data_heatmap, hjust = 0.75, size = 2.5)
+
+# This heatmap shows the correlation coefficients among all the variables.
+# The correlation coefficient is a statistical measure of the strength of a
+# linear relationship between two variables. Its values can range from -1 to 1:
+# - A correlation coefficient of -1 describes a perfect negative correlation. 
+# - A coefficient of 1 shows a perfect positive correlation. 
+# - A correlation coefficient of 0 means there is no linear relationship. 
+
+# Furthermore, as illustrated, variables along the lines of 'Inflight.wifi.service',
+#'Food.and.Drink' or even 'Seat.comfort' are worth studying.
+```
+
+
+For this part of the project, several questions are proposed to get valuable
+information from the variables, as well as check if certain values of one variable
+directly affects the values of other.
+```{r}
+# Q1: Is the travel class in somehow related to the satisfaction of the passengers?
+# If so, which class is the most satisfied?
+ggplot(final_dataset) + aes(x = Class, fill = satisfaction) + 
+  geom_bar(position = 'dodge') +
+  xlab('Passenger class') + ylab('Number of satisfied people') +
+  scale_fill_manual(values = c("#65a765", "#4B774B"))
+
+# According to the graph shown above, it is clear that those passengers belonging
+# to Business class are the most satisfied ones. By seeing these results, it is
+# clear that some improvements must be done in the rest of the classes.
+# Moreover, further investigations could be pursued and discover what is that
+# causes this big dissatisfaction among the passengers of other classes.
+
+
+# Q2: We all are passengers, may it be of cars, trains, planes... and we know
+# how vital a comfortable seat is. Hence, is this a big influence in the
+# passengers' satisfaction? Is this also related to the age and the class?
+ggplot(final_dataset) +
+  aes(x = Seat.comfort, y = Age, colour = satisfaction) +
+  geom_jitter(size = 1.5) +
+  scale_color_manual(
+    values = c(dissatisfied = "#E3242B",
+               satisfied = "#00AB41")
+  ) +
+  theme_minimal() +
+  facet_wrap(vars(Class))
+
+# Several conclusions can be made from this graph:
+# 1. The most dissatisfied passengers belong to Eco class, no matter the age.
+# 2. The most uncomfortable seats are located in the Eco class.
+# 3. As observed, it would be a good recommendation for airlines to upgrade
+#    their seats, as passengers tend to prefer a comfortable seat rather than
+#    the class.
+# 4. The satisfaction does not depend on the age, moreover, we cannot be sure
+#    about this, so let's try to figure this out in next questions.
+
+
+# Q3: Is the the age of the passenger related to the type of customer?
+ggplot(final_dataset) +
+  aes(x = Age, fill = Customer.Type) +
+  geom_density(adjust = 1L) +
+  scale_fill_manual(values = c(`disloyal Customer` = "#FFA068",`Loyal Customer` = "#CAE9F5")) +
+  labs(y = "Density") +
+  theme_bw() +
+  facet_wrap(vars(Customer.Type))
+
+# From very little age to almost 35, and from age 35 to 40, the number of
+# disloyal passengers is very high compared to loyal passengers. On the contrary,
+# in age range 40 to 60, the number of loyal customers are higher compared to the rest.
+
+
+# Q4: Is the type of travel related, in a way or another, to the class of the passengers? 
+ggplot(final_dataset) +
+  aes(x = Type.of.Travel, fill = Class) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = c(Business = "#D6B85A", Eco = "#F9E076", `Eco Plus` = "#FDF443")) +
+  labs(x = "Type of travel",y = '') +
+  theme_minimal()
+
+
+# After an in-depth analysis of the graph exposed above, it is clear that those
+# traveling because of business reasons tend to travel in business class, even
+# though the number of those traveling in eco and eco plus are almost the same, 
+# no matter the type of travel.
+
+
+# Q5: Are the variables Departure.Delay.in.Minutes and Arrival.Delay.in.Minutes
+# related to the satisfaction?
+final_dataset %>%
+ filter(Departure.Delay.in.Minutes >= 0 & Departure.Delay.in.Minutes <= 1000) %>%
+ filter(Arrival.Delay.in.Minutes >= 0 & Arrival.Delay.in.Minutes <= 1000) %>%
+ ggplot() +
+ aes(x = Departure.Delay.in.Minutes, y = Arrival.Delay.in.Minutes, colour = satisfaction) +
+ geom_point(shape = "circle", size = 1.5) +
+ scale_color_hue(direction = 1) +
+ labs(x = "Departure delay in minutes", 
+ y = "Arrival delay in minutes") +
+ theme_minimal() +
+ theme(legend.position = "top")
+
+# Indeed, there is a positive linear relationship between the variables.
+# Concerning these variables, it is clear that the lower the delay, the more the
+# satisfied number of passengers. Nonetheless, even with no delay there are still
+# some passengers who are dissatisfied. This may be explained with other variables.
+
+
+# Q6: Is the satisfaction influenced by the variables Cleanliness, Ease.of.Online.booking, 
+# Food.and.drink, and Seat.comfort?
+ggplot(final_dataset) +
+ aes(x = satisfaction, y = Cleanliness) +
+ geom_col(fill = "#FA8128") +
+ labs(x = "Satisfaction", 
+ y = "Cleanliness") +
+ theme_bw() +
+ facet_wrap(vars(Cleanliness), ncol = 6L)
+
+
+ggplot(final_dataset) +
+  aes(x = satisfaction, y = Ease.of.Online.booking) +
+  geom_col(fill = "#FA8128") +
+  labs(x = "Satisfaction", 
+       y = "Ease of online boarding") +
+  theme_bw() +
+  facet_wrap(vars(Ease.of.Online.booking), ncol = 6L)
+
+ggplot(final_dataset) +
+  aes(x = satisfaction, y = Food.and.drink) +
+  geom_col(fill = "#FA8128") +
+  labs(x = "Satisfaction", 
+       y = "Food and drink") +
+  theme_bw() +
+  facet_wrap(vars(Food.and.drink), ncol = 6L)
+
+ggplot(final_dataset) +
+  aes(x = satisfaction, y = Seat.comfort) +
+  geom_col(fill = "#FA8128") +
+  labs(x = "Satisfaction", 
+       y = "Seat comfort") +
+  theme_bw() +
+  facet_wrap(vars(Seat.comfort), ncol = 6L)
+
+# For all these features, the maximum number of satisfied passengers belong to
+# categories 4 and 5. Below these, passengers are dissatisfied.
+```
+
+
+
+# Principal Component Analysis.
+Principal component analysis, or PCA, is a technique for reducing the number
+of dimensions in large data sets by condensing a large collection of variables
+into a smaller set that retains the majority of the large set's information.
+Accuracy naturally suffers as a data set's variables are reduced, but the
+answer to dimensionality reduction is to trade a little accuracy for
+simplicity, since machine learning algorithms can analyze data much more
+quickly and easily with smaller data sets because there are less unnecessary
+factors to process.
+To summarize, the goal of PCA is to minimize the number of variables in a data
+set while maintaining as much information as possible. 
+```{r}
+# It is a must to transform all the variables to numeric, since PCA only works
+# with these kind of variables. Factor variables are excluded.
+data_pca <- final_dataset[c(3, 6:22)]
+data_pca <- as.data.frame(sapply(data_pca, as.numeric))
+```
+
+
+## STEP 1: Standardization and computation of the eigenvectors and eigenvalues of the covariance matrix.
+The aim of this step is to standardize the range of the continuous initial
+variables so that each one of them contributes equally to the analysis.
+Standardization is crucial to complete before PCA, notably because the latter
+is quite sensitive to the variances of the starting variables. That is, if 
+there are significant disparities in the initial variable ranges, the bigger
+range variables will predominate over the smaller range variables, resulting
+in biased findings. Therefore, converting the data to equivalent scales can
+solve this issue. All of the variables will be scaled to the same value
+once standardization is complete.
+Once standardized, the eigenvectors and eigenvalues are computed to identify
+the principal components. This is done through the function 'pca()', which
+performs a PCA on the given data matrix.
+```{r}
+# Perform PCA and observe the results.
+pca <- prcomp(data_pca, scale = TRUE)
+summary(pca)
+```
+
+
+## STEP 2: Interpret the results.
+It is known that PCA firstly extracts the maximum variance and puts it into
+the first factor. After that, it removes that variance explained by the first
+factor and then starts extracting maximum variance for the second factor.
+This process goes to the last factor.
+How many components is it desired to take? Here, there are several methods to 
+follow:
+
+  - 1. Percentage of variance that the components account for.
+  Obtained by calculating the percentage of variation that the major components explain using the cumulative proportion. Then, keep the main factors that account for a reasonable amount of variation. It depends on the purpose of our project, but it may be needed between an 80% to 90%  of the variance for descriptive reasons.
+  
+  - 2. The eigenvalues must be observed.
+  You can use the size of the eigenvalue to determine the number of principal components. Retain the principal components with the largest eigenvalues. For example, using the Kaiser criterion, you use only the principal components with eigenvalues that are greater than 1. These must be above 1, because this means that they explain as much variation as the original variables.
+  
+  - 3. Scree plot.
+  The scree plot orders the eigenvalues from largest to smallest. The ideal pattern is a steep curve, followed by a bend, and then a straight line. Use the components in the steep curve before the first point that starts the line trend.
+  
+```{r}
+# In our case, scree plot will be used.
+fviz_screeplot(pca, addlabels = TRUE)
+
+# As the plot shows, by using 4 factors, it would be enough to explain more than 50% of the dataset.
+pca$rotation[,1:4]
+```
+
+
+### Interpretation of the PCA1.
+```{r}
+barplot(pca$rotation[,1], las=2, col="darkblue")
+
+# The first principal component is mostly correlated correlated with four of the
+# original variables (despite these values are not high). The first principal
+# component increases with increasing 'Food.and.Drink', 'Seat.comfort', 
+# 'Inflight.entertainment', and 'Cleanliness'.
+# This suggests that these four criteria vary together. If one increases,
+# then the remaining ones tend to increase as well. Furthermore, one can see that
+# the first principal component correlates most strongly with 'Inflight.entertainment'.
+```
+
+
+### Interpretation of the PCA2.
+```{r}
+barplot(pca$rotation[,2], las=2, col="darkblue")
+
+# The second principal component increases with one of the variables, increasing
+# 'Ease.of.Online.booking'. This component can be viewed as a measure of how
+# satisfied are passengers in terms of how easy it is to do online booking.
+```
+
+
+### Interpretation of the PCA3.
+```{r}
+barplot(pca$rotation[,3], las=2, col="darkblue")
+
+# The third principal component increases with increasing 'Baggage.handling' and
+# 'Inflight.service', even the correlation is not that high. However, these two
+# are the ones that contain the highest correlation with PCA2 (0.43517739, 0.44670724;
+# respectively).
+```
+
+
+### Interpretation of the PCA4.
+```{r}
+barplot(pca$rotation[,4], las=2, col="darkblue")
+
+# Finally, the fourth principal component analyses increases with decreasing
+# 'Arrival.Delay.in.Minutes' and 'Departure.Delay.in.Minutes', presenting these
+# a very strong correlation (-0.703103717, -0.703433692; respectively).
+```
+
+
+
+# Factor Analysis.
+Factor analysis provides a tool to find the relationships between latent
+variables (non-observable) and indicators (observable). 
+The primary goal here is to explain correlations between indicators due to
+common factors (latent variables).
+```{r}
+# It is a must to transform all the variables to numeric, since factor analysis
+# only works with these kind of variables. Factor variables are excluded.
+fa <- final_dataset[c(3, 6:22)]
+fa <- as.data.frame(sapply(fa, as.numeric))
+```
+
+
+Before starting to perform factor analysis, some concepts need to be understood.
+It's crucial to grasp that the linear factor model cannot be identified.
+This implies that the possibility of alternative matrices producing the same x
+values is unlimited.
+
+Because of this, factor analysis often involves two steps. In the first, a
+single set of loadings is calculated, producing theoretical variances and
+covariances that roughly match the observed ones. However, these loadings might
+not offer a logical explanation. As a result, the loadings are modified in the
+second step in an effort to produce a new set that fits the observed variances
+and covariances just as well but is simpler to understand.
+
+Rotation generally refers to the process of changing a factor pattern.
+
+
+
+## METHOD 1: Fit a 4-factor model with no rotation.
+### STEP 1: Perform factor analysis.
+In the R software factor analysis is implemented by the 'factanal()' function.
+The function performs maximum-likelihood factor analysis on a covariance matrix
+or data matrix. Just to be in context, the MLE (Maximum Likelihood Estimator), is
+a technique used for estimating the parameters of a given distribution, using
+some observed data.
+
+The number of factors to be fitted is specified by the argument factors. 
+Further, the factor scores may be calculated either by using Thompson’s estimator
+or Bartlett’s weighted least-squares scores method. The particular method is
+specified by an additional argument scores = "regression" or scores = "Bartlett".
+Moreover, by the additional argument rotation the transformation of the factors
+may be specified by either rotation = "varimax" for orthogonal rotation,
+rotation = "Bartlett" for oblique rotation or rotation = "none".
+
+
+A 4-factor model with no rotation is fitted.
+```{r}
+x.f <- factanal(fa, factors = 4, rotation="none", scores="regression")
+x.f
+```
+
+
+This gives us as an output several information. Among the key points to consider are:
+
+   1. Uniqueness. It is the variance that is 'unique' to the variable and not
+   shared with other variables. It ranges from 0 to 1 and is referred to as
+   'noise'. If it is very close to 1, the variable does not explain very good
+   the variance of our model.
+
+
+   2. Loadings. It ranges from -1 to 1. The loadings are the contribution of each
+   original variable to the factor. Variables with a high loading are well
+   explained by the factor. The higher the value, the better.
+
+
+   3. The table beneath the loadings shows the proportion of variance explained
+   by each factor. The row 'Cumulative Var' gives the cumulative proportion of
+   variance explained. These numbers range from 0 to 1. The row 'Proportion Var'
+   gives the proportion of variance explained by each factor, and the row 'SS
+   loadings' gives the sum of squared loadings. 
+   Note: A factor is worth keeping if the SS loading is greater than 1 (Kaiser’s rule).
+
+
+   4. The last section of the function output shows the results of a hypothesis test.
+   The null hypothesis, H0, is that the number of factors in the model is sufficient
+   to capture the full dimensionality of the data set. Conversely, we reject H0 if the
+   p-value is less than 0.05.
+
+```{r}
+cbind(x.f$loadings, x.f$uniquenesses)
+```
+
+
+### STEP 2: Conclusions.
+As observed in the results from above, several conclusions can be reached:
+
+  1. First off, regarding uniqueness, it looks as though those certain variables
+  do not explain very well the variance of our model ('Age', 'Flight.Distance',
+  'Departure.Arrival.time.convenient', 'Gate.location', 'Leg.room.service' and
+  'Checkin.service').
+  
+  2. Secondly, loadings need an extense explanation:
+  
+```{r}
+# Interpretation of factor 1.
+barplot(x.f$loadings[,1], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The first factor is highly correlated correlated with three of the
+# original variables. The first factor increases with increasing
+# 'Inflight.wifi.service', 'Inflight.entertainment', and 'Cleanliness'.
+# This suggests that these three criteria vary together. If one increases,
+# then the remaining ones tend to increase as well. Furthermore, we see that
+# the first factor correlates most strongly with the 'Inflight.entertainment'
+# (0.721457996).
+
+
+# Interpretation of factor 2.
+barplot(x.f$loadings[,2], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The second factor increases with one of the variables, decreasing
+# 'Ease.of.Online.booking'. This factor can be viewed as a measure of how
+# satisfied are passengers in terms of how easy it is to do online booking.
+
+
+# Interpretation of factor 3.
+barplot(x.f$loadings[,3], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The third factor increases with increasing 'Departure.Delay.in.Minutes' and
+# 'Arrival.Delay.in.Minutes', containing the highest correlation (0.968, 0,997;
+# respectively).
+
+
+# Interpretation of factor 4.
+barplot(x.f$loadings[,4], las=2, col="darkblue", ylim = c(-1, 1))
+
+# For the fourth and last factor, it increases with increasing 'Baggage.handling' and
+# 'Inflight.service', even the correlation is not has high as it is desired to be.
+# However, these two are the ones that contain the highest correlation with the
+# last factor (0.6536253067, 0.6932535259; respectively).
+```
+
+
+  3. Regarding the SS loadings, one can tell that, as of right now, all the factors
+  are worth being maintained due to Kaiser's rule.
+  
+  4. Finally, related to the p-value, since it is 0, it means that it is a must to
+  reject the hypothesis. That is, 4 factors are not enough, contrary to our initial
+  hypothesis.
+  
+  
+  
+## METHOD 2: Fit a 4-factor model with rotation varimax and Barlett estimation for scores.
+The varimax technique makes some of these loadings as large as feasible and the
+rest as little as possible in absolute value by maximizing the variance of the
+squared loadings for each factor. As a result, the variables can be divided into
+groups where each group has strong loadings on one factor, moderate to low
+loadings on a few factors, and negligible loadings on the remaining factors.
+The varimax technique promotes the discovery of factors, each of which is
+associated with a small number of variables. It discourages the identification
+of elements affecting every variable.
+
+
+### STEP 1: Perform factor analysis.
+```{r}
+x.f2 <- factanal(fa, factors = 4, rotation="varimax", scores="Bartlett", lower = 0.01)
+x.f2
+
+# From the results, it is desired to analyze 'loadings' (a matrix of loadings,
+# one column for each factor. The factors are ordered in decreasing order of
+# sums of squares of loadings, and given the sign that will make the sum of
+# the loadings positive) and 'uniqueness' (the variance that is 'unique' to
+# the variable and not shared with other variables)
+cbind(x.f2$loadings, x.f2$uniquenesses)
+```
+
+
+### STEP 2: Conclusions.
+As observed in the results from above, several conclusions can be reached:
+
+  1. Firstly, regarding uniqueness, it looks as though the same conclusions from 
+  the process done with no rotation can be taken; that is, 'Age', 'Flight.Distance',
+  'Departure.Arrival.time.convenient', 'Gate.location', 'Leg.room.service' and
+  'Checkin.service' do not explain remarkably well the variance of our model.
+  
+  2. Secondly, loadings must be interpreted:
+  
+```{r}
+# Interpretation of factor 1.
+barplot(x.f2$loadings[,1], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The first factor is highly correlated correlated with three of the
+# original variables. The first principal component increases with increasing
+# 'Food.and.Drink', 'Seat.comfort', 'Inflight.entertainment', and 'Cleanliness'.
+# This suggests that these four criteria vary together. If one increases,
+# then the remaining ones tend to increase as well. Furthermore, we see that
+# the first principal component correlates most strongly with 'Cleanliness'
+# (0.853627890).
+
+
+# Interpretation of factor 2.
+barplot(x.f2$loadings[,2], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The second factor increases with one of the variables, increasing 'On.board.service', 
+# 'Baggage.handling', and 'Inflight.service'. This component can be viewed as a
+# measure of how satisfied are passengers in terms of how easy it is to do
+# baggage handling and how good the inflight service is. It correlates the most
+# with 'Inflight.service' (0.80799893).
+
+
+# Interpretation of factor 3.
+barplot(x.f2$loadings[,3], las=2, col="darkblue", ylim = c(-1, 1))
+
+# The third factor increases with increasing 'Inflight.wifi.service' and 
+# 'Ease.of.Online.booking',  containing the highest correlation with the latter
+# (0.939415797).
+
+
+# Interpretation of factor 4.
+barplot(x.f2$loadings[,4], las=2, col="darkblue", ylim = c(-1, 1))
+
+# For the fourth and last factor, it increases with increasing
+# 'Departure.Delay.in.Minutes' and 'Arrival.Delay.in.Minutes', containing the
+# highest correlation 'Arrival.Delay.in.Minutes' (0.969928615,0.994440863; respectively).
+```
+
+
+  3. Regarding the SS loadings, all the factors are worth being maintained due
+  to Kaiser's rule.
+  
+  4. Finally, related to the p-value, since it is 0, it means that it is a must to
+  reject the hypothesis. That is, 4 factors are not enough.
+
+
+
+# Clustering
+The process of clustering involves grouping the population or data points
+into a number of groups so that the data points within each group are more
+similar to one another than the data points within other groups. 
+Simply said, the goal is to sort into clusters any groups of people who share
+similar characteristics. There are several methods of clustering; there are 
+some along the lines of k-means, k-means with mahalanobis distance, PAM...
+
+
+## METHOD 1: K-means.
+For example, K-means clustering algorithms assign similar data points into groups,
+where the K value represents the size of the grouping and granularity.
+This technique is helpful for market segmentation, image compression, etc.
+
+K-means works in the following way:
+
+  - 1. Choose the number of clusters K.
+  
+  - 2. Select randomly K points,which will be the initial centroids of the clusters. A centroid is 
+  imaginary or real location representing the center of the cluster. Every data point is allocated to each of the clusters through reducing the in-cluster sum of squares.
+  
+  - 3. Assign each point to the nearest centroid. This creates the K clusters.
+  
+  - 4. If the centroids have changed, go back to step 3; otherwise the algorithm
+  ends.
+
+```{r}
+# It is a must to transform all the variables to numeric, since clustering only works
+# with these kind of variables. Factor variables are excluded.
+data_clustering <- final_dataset[c(3, 6:22)]
+data_clustering <- as.data.frame(sapply(data_clustering, as.numeric))
+```
+
+
+### STEP 1: Scale data.
+```{r}
+# The reason why data is scaled is stated in the first step of PCA. The same 
+# applies for clustering. Data is scaled or standardized so that each one of them
+# contributes equally to the analysis.
+X <- scale(data_clustering)
+```
+
+
+### STEP 2: Run k-means by choosing a random number of clusters.
+```{r}
+# K-means is performed using the function 'kmeans(x, centers, nstart)', where 'x'
+# is a numeric matrix of data; 'centers', which is either the number of clusters
+# or a set of initial distinct cluster centers; and 'nstart', which are the random
+# sets that should be chosen in case 'centers' is a number.
+# In this case, 'x' is the scaled data; 'centers' was set to the random number
+# of 5; and 'nstart' was set to 25 (an exceedingly high number must no be considered
+# due to the high number of observations of the dataset).
+fit = kmeans(X, centers=5, nstart=25)
+groups = fit$cluster
+barplot(table(groups), col="#ADD8E6")
+
+# As observed, 5 centers show an unbalanced classification.
+```
+
+
+### STEP 3: Visualize and understand the centers.
+The graphs shown below contain information regarding the centroids and the clusters. The red dot indicates where the centroid of the cluster is located, whilst the blue part refers to as the overall value of the cluster.
+```{r}
+centers = fit$centers
+
+# Cluster 1.
+bar1=barplot(centers[1,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 1,": Group center in blue, global center in red"))
+points(bar1,y=apply(X, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 2.
+bar2=barplot(centers[2,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 2,": Group center in blue, global center in red"))
+points(bar2,y=apply(X, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 3.
+bar3=barplot(centers[3,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 3,": Group center in blue, global center in red"))
+points(bar3,y=apply(X, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 4.
+bar4=barplot(centers[4,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 4,": Group center in blue, global center in red"))
+points(bar4,y=apply(X, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 5.
+bar5=barplot(centers[5,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 5,": Group center in blue, global center in red"))
+points(bar5,y=apply(X, 2, quantile, 0.50),col="red",pch=19)
+
+```
+
+
+### STEP 4: Cluspot.
+The main goal of  the clusplot is to create a  plot visualizing a clustering of
+the data. All observation are represented by points in the plot, using principal
+components or multidimensional scaling.
+```{r}
+fviz_cluster(fit, X, geom = c("point"))
+
+# As observed, 5 centers show an unbalanced classification. In the next step,
+# the best number of clusters will be found.
+```
+
+
+### STEP 5: Select the best number of clusters.
+As previously stated in step 4, five centers are not enough. Thus, the best number
+of clusters will be found using the elbow method.
+
+In the Elbow method, we are actually varying the number of clusters (K)
+from 1 – 10. For each value of K, we are calculating WSS. This is the sum of
+squared distance between each point and the centroid in a cluster. When we plot
+the WSS with the K value, the plot looks like an Elbow. As the number of
+clusters increases, the WSS value will start to decrease. WSS value is largest
+when K = 1. When we analyze the graph we can see that the graph will rapidly
+change at a point and thus creating an elbow shape. From this point, the graph
+starts to move almost parallel to the X-axis. The K value corresponding to this
+point is the optimal K value or an optimal number of clusters.
+```{r}
+evaluation = data.frame(cluster = 1:10, WSS = 0)
+for(i in 1:10){
+  fit = kmeans(X,
+               centers = evaluation$cluster[i],
+               nstart = 25)
+  evaluation$WSS[i] = sum(X-fit$centers[fit$cluster,]^2)
+}
+```
+
+
+### STEP 6: Visualize the results.
+```{r}
+ggplot(evaluation) + aes(x = cluster, y = WSS) + 
+  geom_point() + geom_line() +
+  scale_x_continuous(breaks = 1:10) +
+  xlab('Number of clusters k') +
+  ylab('Total Within Sum of Squares') +
+  labs(title = 'Elbow method')
+
+# Ergo, with 2 centers our data can be properly grouped.
+```
+
+
+### STEP 7: Perform clustering with the best number of clusters.
+```{r}
+fit = kmeans(X, centers = 2, nstart = 25)
+
+# Is the classification more balanced than before?
+groups = fit$cluster
+barplot(table(groups), col="#ADD8E6")
+
+# The clusplot can also be checked, observing that, indeed, a more balanced
+# classification is obtained with the number of clusters equal to 2.
+fviz_cluster(fit, X, geom = c('point'))
+```
+
+
+
+## METHOD 2: K-means with Mahalanobis distance.
+By default k-means uses the Euclidean distance; that is, it does not consider 
+correlations between variables. If it is desired to incorporate these correlations,
+then the Mahalanobis distance may be useful.
+
+
+### STEP 1: Compute the Mahalanobis distance.
+```{r}
+# Prepare the data to be used in the process.
+data_clustering2 <- final_dataset[c(3, 6:22)]
+data_clustering2 <- as.data.frame(sapply(data_clustering2, as.numeric))
+S_x <- cov(data_clustering2)
+iS <- solve(S_x)
+e <- eigen(iS)
+V <- e$vectors
+B <- V %*% diag(sqrt(e$values)) %*% t(V)
+Xtil <- scale(data_clustering2,scale = FALSE)
+dataS <- Xtil %*% B
+```
+
+
+### STEP 2: K-means with a random number of clusters assuming an elliptic distribution.
+```{r}
+# In this case, the random number of 5 was chosen. Note that this is totally of
+# our choice. It could have been 6...or even 10.
+fit.mahalanobis = kmeans(dataS, centers=5, nstart=25)
+groups2 = fit.mahalanobis$cluster
+barplot(table(groups2), col="#ADD8E6")
+
+# As observed, 5 centers show an unbalanced classification.
+```
+
+
+### STEP 3: Visualize and understand the centers.
+The graphs shown below contain information regarding the centroids and the clusters. The red dot indicates where the centroid of the cluster is located, whilst the blue part refers to as the overall value of the cluster.
+```{r}
+centers2 = fit.mahalanobis$centers
+colnames(centers2)=colnames(Xtil)
+
+# Cluster 1.
+bar1=barplot(centers2[1,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 1,": Group center in blue, global center in red"))
+points(bar1,y=apply(Xtil, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 2.
+bar2=barplot(centers2[2,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 2,": Group center in blue, global center in red"))
+points(bar2,y=apply(Xtil, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 3.
+bar3=barplot(centers2[3,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 3,": Group center in blue, global center in red"))
+points(bar3,y=apply(Xtil, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 4.
+bar4=barplot(centers2[4,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 4,": Group center in blue, global center in red"))
+points(bar4,y=apply(Xtil, 2, quantile, 0.50),col="red",pch=19)
+
+# Cluster 5.
+bar5=barplot(centers2[5,], las=2, col="darkblue", ylim=c(-2,2), main=paste("Cluster", 5,": Group center in blue, global center in red"))
+points(bar5,y=apply(Xtil, 2, quantile, 0.50),col="red",pch=19)
+
+```
+
+
+### STEP 4: Cluspot.
+The main goal of  the clusplot is to create a  plot visualizing a clustering of the data. All observation are represented by points in the plot, using principal components or multidimensional scaling.
+```{r}
+fviz_cluster(fit.mahalanobis, Xtil, geom = c("point"), ellipse.type = 'norm')
+
+# As observed, 5 centers show an unbalanced classification. In the next step,
+# the best number of clusters will be found.
+```
+
+
+### STEP 5: Select the best number of clusters.
+As previously stated in step 4, five centers are not enough. Thus, the best number
+of clusters will be found using the so-called elbow method (already explained how it
+works in method 1).
+```{r}
+evaluation = data.frame(cluster = 1:10, WSS = 0)
+for(i in 1:10){
+  fit.mahalanobis = kmeans(Xtil,
+               centers = evaluation$cluster[i],
+               nstart = 25)
+  evaluation$WSS[i] = sum(Xtil-fit.mahalanobis$centers[fit.mahalanobis$cluster,]^2)
+}
+```
+
+
+### STEP 6: Visualize the results.
+```{r}
+ggplot(evaluation) + aes(x = cluster, y = WSS) + 
+  geom_point() + geom_line() +
+  scale_x_continuous(breaks = 1:10) +
+  xlab('Number of clusters k') +
+  ylab('Total Within Sum of Squares') +
+  labs(title = 'Elbow method')
+
+# Ergo, with 2 centers our data can be properly grouped. It is worth mentioning
+# that this elbow method is somehow easier to interpret. That is, in this case
+# one can better identify the number of clusters that best fits our model.
+```
+
+
+### STEP 7: Perform clustering with the best number of clusters.
+```{r}
+fit.mahalanobis = kmeans(Xtil, centers = 2, nstart = 25)
+
+# Is the classification more balanced than before?
+groups2 = fit.mahalanobis$cluster
+barplot(table(groups2), col="#ADD8E6")
+
+# The clusplot can also be checked, observing that, in this case, a more balanced
+# classification is NOT obtained with the number of clusters equal to 2.
+fviz_cluster(fit.mahalanobis, Xtil, geom = c("point"), ellipse.type = 'norm')
+```
+
+
+## How similar are the clusters?
+So that the similarity of these methods can be checked, the adjusted rand index is
+used. The Adjusted Rand score is used to determine whether two cluster results are
+similar to each other. It calculates a similarity between two cluster results
+by taking all points identified within the same cluster.
+```{r}
+# Apply 'adjustedRandIndex()' function.
+adjustedRandIndex(fit$cluster, fit.mahalanobis$cluster) 
+```
+
+
+Hence, the Euclidean distance gives very different clusters than the Mahalanobis one.
+Moreover, by simple observation, one can notice that using k-means with euclidean
+distance gives better outcomes than the one with Mahalanobis distance.
+
+
+
+# Final comments.
+Before finishing the project, it is a must to somehow explain what has been
+observed so far. 
+
+As of right now, without having set a target variable, trying to explain this 
+dataset may be arduous. It may be not working, since there is only a weak
+correlation between the features. Nonetheless, it can be said that there is 
+a correlation between: 'Cleanliness', 'Food.and.Drink', 'Seat.comfort' and 
+'Inflight.entertainment'. 
+
+At most it can be concluded that as long as passengers are kept happy with food,
+drink, a comfortable seat, and entertainment, it will result in cleaner people.
+
+As was shown, these outcomes are not as potential as desired. Consequently, 
+with unsupervised learning, it has been demonstrated to not be enough to fully
+understand or extract valuable information.
+
+Moreover, to end this project, a suggestion can be done. One may remark that
+almost every single variable of the dataset correlates with the variable
+'satisfaction'. So, what if better outcomes could be obtained by performing
+supervised learning with the target variable being 'satisfaction'?

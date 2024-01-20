@@ -1,0 +1,1 @@
+The aim of this homework is to apply unsupervised learning tools to an open data set. In order to do so, it was proposed to think about some goals or questions that may be desired to answer and, finally, get convenient insights and conclusions from the output of the tools.
